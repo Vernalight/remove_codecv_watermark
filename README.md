@@ -32,6 +32,16 @@ python3 -m pip install -r requirements.txt
 
 ## 使用
 
+最简单的方式——不带参数直接运行，脚本会自动扫描当前目录：
+
+```bash
+python3 remove_codecv_watermark.py
+```
+
+- 当前目录只有 1 个 PDF 时，自动处理并输出 `<原文件名>.clean.pdf`
+- 脚本自己输出的 `*.clean.pdf` 会被忽略，重复运行不会互相干扰
+- 当前目录没有 PDF 或有多个 PDF 时会报错提示（多个时列出文件清单，请改用下面的方式明确指定）
+
 指定输出文件：
 
 ```bash

@@ -338,11 +338,33 @@ def default_output_path(input_pdf: Path) -> Path:
     return input_pdf.with_name(input_pdf.stem + DEFAULT_OUTPUT_SUFFIX)
 
 
+def find_directory_pdfs(directory: Path | None = None) -> list[Path]:
+    """List candidate resume PDFs directly inside a directory.
+
+    Outputs produced by this tool (``*.clean.pdf``) are skipped so that
+    re-running in the same directory keeps finding the original resume.
+    """
+    directory = Path.cwd() if directory is None else Path(directory)
+    return [
+        pdf for pdf in sorted(directory.glob("*.pdf"))
+        if not pdf.name.endswith(DEFAULT_OUTPUT_SUFFIX)
+    ]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Remove CodeCV's watermark from an exported resume PDF."
     )
-    parser.add_argument("input_pdf", type=Path, help="Path to the exported CodeCV PDF")
+    parser.add_argument(
+        "input_pdf",
+        type=Path,
+        nargs="?",
+        help=(
+            "Path to the exported CodeCV PDF. If omitted, the current "
+            "directory is scanned: it must contain exactly one PDF "
+            "(excluding '*.clean.pdf' outputs)."
+        ),
+    )
     parser.add_argument(
         "output_pdf",
         type=Path,
@@ -352,10 +374,33 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _resolve_input_pdf(input_pdf: Path | None) -> Path | None:
+    """Fall back to scanning the current directory when no input is given."""
+    if input_pdf is not None:
+        return input_pdf
+
+    pdfs = find_directory_pdfs()
+    if not pdfs:
+        print("错误：当前目录没有找到 PDF 文件。")
+        print("提示：cd 到简历所在目录后运行，或直接指定文件路径。")
+        return None
+    if len(pdfs) > 1:
+        print("错误：当前目录有多个 PDF，无法自动判断要处理哪一个，请明确指定：")
+        for pdf in pdfs:
+            print(f"  {pdf.name}")
+        return None
+
+    print(f"自动发现 PDF：{pdfs[0].name}")
+    return pdfs[0]
+
+
 def main() -> int:
     args = parse_args()
-    output_pdf = args.output_pdf or default_output_path(args.input_pdf)
-    counts = remove_watermark(args.input_pdf, output_pdf)
+    input_pdf = _resolve_input_pdf(args.input_pdf)
+    if input_pdf is None:
+        return 2
+    output_pdf = args.output_pdf or default_output_path(input_pdf)
+    counts = remove_watermark(input_pdf, output_pdf)
     print(
         f"Removed {counts['patterns']} pattern fill(s) and "
         f"{counts['images']} watermark image(s)."
